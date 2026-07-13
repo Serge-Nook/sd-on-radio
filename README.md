@@ -29,6 +29,17 @@ sd-on-radio
 
 Установщик работает от обычного пользователя и размещает файлы только в домашней директории.
 
+## Запуск без установки (AppImage)
+
+Скачайте `SD-ON-RADIO-1.0.0-x86_64.AppImage` из Releases и выполните:
+
+```sh
+chmod +x SD-ON-RADIO-1.0.0-x86_64.AppImage
+./SD-ON-RADIO-1.0.0-x86_64.AppImage
+```
+
+AppImage запускается как один переносимый файл и не устанавливает приложение в систему.
+
 ## Удаление
 
 ```sh
@@ -60,6 +71,14 @@ npm run build:installer
 ```
 
 Результат: `dist/sd-on-radio-installer.sh`. В него включены приложение, Electron и необходимые ресурсы; на Steam Deck Node.js и Electron не требуются.
+
+Создание AppImage:
+
+```sh
+npm run build:appimage
+```
+
+Результат: `dist/SD-ON-RADIO-1.0.0-x86_64.AppImage`. Скрипт использует зафиксированные версии `appimagetool` и AppImage runtime с проверкой SHA-256.
 
 ## Данные
 

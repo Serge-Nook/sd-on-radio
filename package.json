@@ -10,7 +10,8 @@
     "start": "electron .",
     "lint": "node scripts/lint.mjs",
     "test": "node --test",
-    "build:installer": "node scripts/build-installer.mjs"
+    "build:installer": "node scripts/build-installer.mjs",
+    "build:appimage": "node scripts/build-appimage.mjs"
   },
   "devDependencies": {
     "electron": "39.8.10"

@@ -1,6 +1,6 @@
 window.SdOnRadio = window.SdOnRadio || {};
 
-class RadioPlayer {
+window.SdOnRadio.RadioPlayer = class RadioPlayer {
   constructor(audio, onStateChange) {
     this.audio = audio;
     this.onStateChange = onStateChange;
@@ -117,6 +117,4 @@ class RadioPlayer {
       ...detail,
     });
   }
-}
-
-window.SdOnRadio.RadioPlayer = RadioPlayer;
+};
