@@ -10,17 +10,108 @@ DESKTOP_HOME="$DATA_HOME/applications"
 LAUNCHER="$BIN_HOME/sd-on-radio"
 DESKTOP_FILE="$DESKTOP_HOME/sd-on-radio.desktop"
 PAYLOAD_SHA256="__PAYLOAD_SHA256__"
+DIALOG_BACKEND=""
+SELECTED_ACTION=""
 
 print_help() {
   cat <<EOF
 $APP_NAME $APP_VERSION
 
 Использование:
-  $0                 Установить или обновить приложение
+  $0                 Открыть меню установки и удаления
   $0 --install       Установить или обновить приложение
   $0 --uninstall     Удалить приложение и пользовательские настройки
   $0 --help          Показать эту справку
 EOF
+}
+
+choose_action() {
+  if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v kdialog >/dev/null 2>&1; then
+    DIALOG_BACKEND="kdialog"
+    SELECTED_ACTION="$(
+      kdialog \
+        --title "$APP_NAME $APP_VERSION" \
+        --menu "Выберите действие:" \
+        install "Установить или обновить" \
+        uninstall "Удалить приложение и настройки" \
+        exit "Выйти"
+    )" || SELECTED_ACTION="exit"
+    return
+  fi
+
+  if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v zenity >/dev/null 2>&1; then
+    DIALOG_BACKEND="zenity"
+    selection="$(
+      zenity \
+        --list \
+        --title="$APP_NAME $APP_VERSION" \
+        --text="Выберите действие:" \
+        --column="Действие" \
+        "Установить или обновить" \
+        "Удалить приложение и настройки" \
+        "Выйти"
+    )" || selection="Выйти"
+
+    case "$selection" in
+      "Установить или обновить") SELECTED_ACTION="install" ;;
+      "Удалить приложение и настройки") SELECTED_ACTION="uninstall" ;;
+      *) SELECTED_ACTION="exit" ;;
+    esac
+    return
+  fi
+
+  DIALOG_BACKEND="console"
+  while :; do
+    printf '\n%s %s\n' "$APP_NAME" "$APP_VERSION"
+    printf '%s\n' "1) Установить или обновить"
+    printf '%s\n' "2) Удалить приложение и настройки"
+    printf '%s\n' "3) Выйти"
+    printf '%s' "Выберите действие [1-3]: "
+
+    if ! IFS= read -r selection; then
+      SELECTED_ACTION="exit"
+      return
+    fi
+
+    case "$selection" in
+      1) SELECTED_ACTION="install"; return ;;
+      2) SELECTED_ACTION="uninstall"; return ;;
+      3) SELECTED_ACTION="exit"; return ;;
+      *) printf '%s\n' "Введите 1, 2 или 3." ;;
+    esac
+  done
+}
+
+confirm_removal() {
+  case "$DIALOG_BACKEND" in
+    kdialog)
+      kdialog \
+        --title "$APP_NAME" \
+        --yesno "Удалить приложение, пользовательские станции и настройки?"
+      ;;
+    zenity)
+      zenity \
+        --question \
+        --title="$APP_NAME" \
+        --text="Удалить приложение, пользовательские станции и настройки?"
+      ;;
+    *)
+      printf '%s' "Удалить приложение и все настройки? [y/N]: "
+      IFS= read -r confirmation || return 1
+      case "$confirmation" in
+        y|Y|yes|YES|д|Д|да|ДА) return 0 ;;
+        *) return 1 ;;
+      esac
+      ;;
+  esac
+}
+
+show_completion() {
+  message="$1"
+  case "$DIALOG_BACKEND" in
+    kdialog) kdialog --title "$APP_NAME" --msgbox "$message" || true ;;
+    zenity) zenity --info --title="$APP_NAME" --text="$message" || true ;;
+  esac
 }
 
 remove_installation() {
@@ -35,6 +126,7 @@ remove_installation() {
   fi
 
   printf '%s\n' "$APP_NAME удалён."
+  show_completion "$APP_NAME удалён."
 }
 
 install_application() {
@@ -90,11 +182,26 @@ EOF
   printf '%s\n' "$APP_NAME $APP_VERSION установлен."
   printf '%s\n' "Запуск: $LAUNCHER"
   printf '%s\n' "Ярлык добавлен в меню приложений."
+  show_completion "$APP_NAME $APP_VERSION установлен.
+
+Запуск: $LAUNCHER
+Ярлык добавлен в меню приложений."
 }
 
-case "${1:---install}" in
-  --install) install_application ;;
+if [ "$#" -eq 0 ]; then
+  choose_action
+  set -- "$SELECTED_ACTION"
+fi
+
+case "$1" in
+  install|--install) install_application ;;
+  uninstall)
+    if confirm_removal; then
+      remove_installation
+    fi
+    ;;
   --uninstall) remove_installation ;;
+  exit) exit 0 ;;
   --help|-h) print_help ;;
   *)
     printf 'Неизвестный параметр: %s\n' "$1" >&2
