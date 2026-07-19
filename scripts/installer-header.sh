@@ -3,7 +3,7 @@ set -eu
 
 APP_NAME="SD-ON RADIO"
 APP_VERSION="__APP_VERSION__"
-DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+DATA_HOME="$HOME/.local/share"
 APP_HOME="$DATA_HOME/sd-on-radio"
 BIN_HOME="$HOME/.local/bin"
 DESKTOP_HOME="$DATA_HOME/applications"
@@ -138,6 +138,11 @@ install_application() {
       ;;
   esac
 
+  if ! command -v ffmpeg >/dev/null 2>&1; then
+    printf '%s\n' "Ошибка: ffmpeg не найден. В актуальной SteamOS он предустановлен." >&2
+    exit 1
+  fi
+
   temporary_directory="$(mktemp -d)"
   trap 'rm -rf "$temporary_directory"' EXIT HUP INT TERM
   payload_line="$(awk '/^__SD_ON_RADIO_PAYLOAD__$/ { print NR + 1; exit }' "$0")"
@@ -167,11 +172,11 @@ Type=Application
 Name=SD-ON RADIO
 Comment=Интернет-радио для Steam Deck
 Exec=$LAUNCHER
-Icon=$APP_HOME/app/resources/app/src/renderer/assets/icon.svg
+Icon=$APP_HOME/app/icon.svg
 Terminal=false
 Categories=Audio;AudioVideo;Player;
 StartupNotify=true
-StartupWMClass=SD-ON RADIO
+StartupWMClass=sd-on-radio
 EOF
   chmod 0644 "$DESKTOP_FILE"
 
