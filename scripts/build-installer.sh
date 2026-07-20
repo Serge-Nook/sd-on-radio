@@ -30,7 +30,7 @@ mkdir -p "$PAYLOAD_ROOT/app/licenses" "$DIST"
   CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
     go build \
       -trimpath \
-      -ldflags="-s -w -X main.version=$APP_VERSION" \
+      -ldflags="-s -w -buildid= -X main.version=$APP_VERSION" \
       -o "$PAYLOAD_ROOT/app/sd-on-radio" \
       ./cmd/sd-on-radio
 )
