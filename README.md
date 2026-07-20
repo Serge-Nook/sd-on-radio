@@ -137,7 +137,7 @@ dist/sd-on-radio-installer.sh
 ## О программе
 
 - Версия: 2.0.0
-- Разработчик: Serge Nook
+- Разработчик: Serge Nook (nookbat.ru)
 - Сайт: https://sd-on.ru/
 - Лицензия проекта: MIT
 
