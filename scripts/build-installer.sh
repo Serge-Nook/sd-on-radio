@@ -79,11 +79,15 @@ cat "$PAYLOAD" >> "$OUTPUT"
 chmod 0755 "$OUTPUT"
 
 DESKTOP_OUTPUT="$DIST/sd-on-radio-installer.desktop"
+INSTALLER_SHA256="$(sha256sum "$OUTPUT" | awk '{ print $1 }')"
 sed \
   -e "s/__APP_VERSION__/$APP_VERSION/g" \
+  -e "s/__INSTALLER_SHA256__/$INSTALLER_SHA256/g" \
   "$ROOT/scripts/installer-desktop.desktop" > "$DESKTOP_OUTPUT"
+base64 "$OUTPUT" | sed 's/^/# /' >> "$DESKTOP_OUTPUT"
 chmod 0755 "$DESKTOP_OUTPUT"
 
 printf '%s\n' "Готово: $OUTPUT"
-printf '%s\n' "SHA-256: $(sha256sum "$OUTPUT" | awk '{ print $1 }')"
+printf '%s\n' "SHA-256: $INSTALLER_SHA256"
 printf '%s\n' "Готово: $DESKTOP_OUTPUT"
+printf '%s\n' "SHA-256: $(sha256sum "$DESKTOP_OUTPUT" | awk '{ print $1 }')"

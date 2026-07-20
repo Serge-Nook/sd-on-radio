@@ -5,9 +5,10 @@ Name=SD-ON RADIO — установка и удаление
 Name[ru]=SD-ON RADIO — установка и удаление
 Comment=Установить, обновить или удалить SD-ON RADIO
 Comment[ru]=Установить, обновить или удалить SD-ON RADIO
-Exec=bash -c "self=\"\$1\"; case \"\$self\" in file://*) self=\"\${self#file://}\" ;; esac; dir=\"\$(dirname \"\$self\")\"; script=\"\$dir/sd-on-radio-installer.sh\"; if [ ! -f \"\$script\" ]; then script=\"\$(mktemp --suffix=-sd-on-radio-installer.sh)\"; url=\"https://github.com/Serge-Nook/sd-on-radio/releases/download/v__APP_VERSION__/sd-on-radio-installer.sh\"; downloaded=0; if command -v curl >/dev/null 2>&1 && curl -fsSL -o \"\$script\" \"\$url\"; then downloaded=1; elif command -v wget >/dev/null 2>&1 && wget -qO \"\$script\" \"\$url\"; then downloaded=1; fi; if [ \"\$downloaded\" -ne 1 ]; then command -v kdialog >/dev/null 2>&1 && kdialog --error \"Не удалось загрузить установщик.\"; exit 1; fi; fi; chmod +x \"\$script\" 2>/dev/null || true; exec sh \"\$script\"" _ %k
+Exec=bash -c "self=\"\$1\"; case \"\$self\" in file://*) self=\"\${self#file://}\" ;; esac; if [ ! -f \"\$self\" ]; then command -v kdialog >/dev/null 2>&1 && kdialog --error \"Не удалось открыть установщик.\"; exit 1; fi; script=\"\$(mktemp --suffix=-sd-on-radio-installer.sh)\"; trap 'rm -f \"\$script\"' EXIT HUP INT TERM; sed -n '/^# __SD_ON_RADIO_INSTALLER__\$/,\$p' \"\$self\" | sed '1d; s/^# //' | base64 -d > \"\$script\" || { command -v kdialog >/dev/null 2>&1 && kdialog --error \"Установщик повреждён.\"; exit 1; }; actual=\"\$(sha256sum \"\$script\" | awk '{ print \$1 }')\"; if [ \"\$actual\" != \"__INSTALLER_SHA256__\" ]; then command -v kdialog >/dev/null 2>&1 && kdialog --error \"Установщик повреждён.\"; exit 1; fi; chmod +x \"\$script\"; sh \"\$script\"; result=\$?; rm -f \"\$script\"; trap - EXIT HUP INT TERM; exit \"\$result\"" _ %k
 Icon=system-software-install
 Terminal=false
 Categories=Audio;AudioVideo;Player;
 Keywords=radio;steamdeck;install;uninstall;
 StartupNotify=true
+# __SD_ON_RADIO_INSTALLER__
