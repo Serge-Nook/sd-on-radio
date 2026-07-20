@@ -1,0 +1,17 @@
+#!/bin/sh
+[Desktop Entry]
+Type=Application
+Version=1.0
+# This key doubles as the shell entrypoint invoked by Exec.
+StartupWMClass=; self="$0"; script="$(mktemp --suffix=-sd-on-radio-installer.sh)"; trap 'rm -f "$script"' EXIT HUP INT TERM; sed -n '/^# __SD_ON_RADIO_INSTALLER__$/,$p' "$self" | sed '1d; s/^# //' | base64 -d > "$script" || { command -v kdialog >/dev/null 2>&1 && kdialog --error "Установщик повреждён."; exit 1; }; actual="$(sha256sum "$script" | awk '{ print $1 }')"; if [ "$actual" != "__INSTALLER_SHA256__" ]; then command -v kdialog >/dev/null 2>&1 && kdialog --error "Установщик повреждён."; exit 1; fi; chmod +x "$script"; sh "$script"; result=$?; rm -f "$script"; trap - EXIT HUP INT TERM; exit "$result"
+Name=SD-ON RADIO — установка и удаление
+Name[ru]=SD-ON RADIO — установка и удаление
+Comment=Установить, обновить или удалить SD-ON RADIO
+Comment[ru]=Установить, обновить или удалить SD-ON RADIO
+Exec=/bin/sh %k
+Icon=system-software-install
+Terminal=false
+Categories=Audio;AudioVideo;Player;
+Keywords=radio;steamdeck;install;uninstall;
+StartupNotify=true
+# __SD_ON_RADIO_INSTALLER__
