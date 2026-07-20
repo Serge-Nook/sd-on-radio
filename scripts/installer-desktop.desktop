@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=SD-ON RADIO — установка и удаление
+Name[ru]=SD-ON RADIO — установка и удаление
+Comment=Установить, обновить или удалить SD-ON RADIO
+Comment[ru]=Установить, обновить или удалить SD-ON RADIO
+Exec=bash -c "self=\"\$1\"; dir=\"\$(dirname \"\$self\")\"; script=\"\$dir/sd-on-radio-installer.sh\"; if [ ! -f \"\$script\" ]; then script=\"\$(mktemp --suffix=-sd-on-radio-installer.sh)\"; url=\"https://github.com/Serge-Nook/sd-on-radio/releases/download/v__APP_VERSION__/sd-on-radio-installer.sh\"; if command -v curl >/dev/null 2>&1; then curl -fsSL -o \"\$script\" \"\$url\"; elif command -v wget >/dev/null 2>&1; then wget -qO \"\$script\" \"\$url\"; fi; fi; chmod +x \"\$script\" 2>/dev/null || true; exec sh \"\$script\"" _ %k
+Icon=sd-on-radio
+Terminal=false
+Categories=Audio;AudioVideo;Player;
+Keywords=radio;steamdeck;install;uninstall;
+StartupNotify=true
