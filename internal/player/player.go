@@ -329,6 +329,13 @@ func (p *Player) State() State {
 	return p.state
 }
 
+// Status returns the current playback state and station.
+func (p *Player) Status() Status {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return Status{State: p.state, Station: p.station}
+}
+
 // Close stops playback and releases resources.
 func (p *Player) Close() {
 	p.mu.Lock()

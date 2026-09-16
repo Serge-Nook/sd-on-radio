@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Serge-Nook/sd-on-radio/internal/i18n"
 )
 
 func TestIsValidHTTPURL(t *testing.T) {
@@ -139,6 +141,43 @@ func TestReadCorruptRecoversDefault(t *testing.T) {
 	}
 	if got.Volume != defaultVolume {
 		t.Errorf("corrupt file not recovered: %+v", got)
+	}
+}
+
+func TestReadPreferencesAndDefaults(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(path, []byte(`{"stations":[]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Read(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if got.Language != i18n.Russian || !got.GamepadEnabled || got.HideBuiltIn {
+		t.Errorf("unexpected defaults: %+v", got)
+	}
+
+	data := `{"language":"zh","gamepad_enabled":false,"hide_builtin_stations":true}`
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err = Read(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if got.Language != i18n.Chinese || got.GamepadEnabled || !got.HideBuiltIn {
+		t.Errorf("preferences not read: %+v", got)
+	}
+
+	if err := os.WriteFile(path, []byte(`{"language":"xx","gamepad_enabled":"yes"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err = Read(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if got.Language != i18n.Russian || !got.GamepadEnabled {
+		t.Errorf("invalid preferences did not use defaults: %+v", got)
 	}
 }
 

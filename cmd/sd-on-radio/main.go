@@ -10,7 +10,7 @@ import (
 	"github.com/Serge-Nook/sd-on-radio/internal/ui"
 )
 
-var version = "2.0.0"
+var version = "2.1.0"
 
 func main() {
 	if len(os.Args) == 2 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
