@@ -154,9 +154,21 @@ go run ./cmd/sd-on-radio
 dist/sd-on-radio-installer.sh
 ```
 
+Сборка `.desktop`-установщика для запуска двойным щелчком (после предыдущего шага):
+
+```sh
+./scripts/build-desktop-installer.sh
+```
+
+Результат:
+
+```text
+dist/sd-on-radio-installer.desktop
+```
+
 ## О программе
 
-- Версия: 2.0.0
+- Версия: 2.1.0
 - Разработчик: Serge Nook (nookbat.ru)
 - Сайт: https://sd-on.ru/
 - Лицензия проекта: MIT

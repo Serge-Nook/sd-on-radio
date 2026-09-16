@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-APP_VERSION="2.0.0"
+APP_VERSION="2.1.0"
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 DIST="$ROOT/dist"
 WORK="$ROOT/.cache/installer"

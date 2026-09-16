@@ -28,7 +28,7 @@ import (
 const (
 	appID      = "ru.sd-on.radio"
 	appName    = "SD-ON RADIO"
-	appVersion = "2.0.0"
+	appVersion = "2.1.0"
 	websiteURL = "https://sd-on.ru/"
 )
 
