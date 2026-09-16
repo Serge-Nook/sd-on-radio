@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/Serge-Nook/sd-on-radio/internal/i18n"
 )
 
 const (
@@ -28,17 +30,23 @@ type Station struct {
 
 // Settings holds the persisted application state.
 type Settings struct {
-	Stations    []Station `json:"stations"`
-	LastStation string    `json:"last_station"`
-	Volume      float64   `json:"volume"`
+	Stations       []Station     `json:"stations"`
+	LastStation    string        `json:"last_station"`
+	Volume         float64       `json:"volume"`
+	Language       i18n.Language `json:"language"`
+	GamepadEnabled bool          `json:"gamepad_enabled"`
+	HideBuiltIn    bool          `json:"hide_builtin_stations"`
 }
 
 // Default returns the built-in default settings.
 func Default() Settings {
 	return Settings{
-		Stations:    []Station{},
-		LastStation: "",
-		Volume:      defaultVolume,
+		Stations:       []Station{},
+		LastStation:    "",
+		Volume:         defaultVolume,
+		Language:       i18n.DefaultLanguage,
+		GamepadEnabled: true,
+		HideBuiltIn:    false,
 	}
 }
 
@@ -97,10 +105,17 @@ func Normalize(value Settings) Settings {
 			stations = append(stations, normalized)
 		}
 	}
+	language := value.Language
+	if !i18n.IsValid(language) {
+		language = i18n.DefaultLanguage
+	}
 	return Settings{
-		Stations:    stations,
-		LastStation: truncateName(value.LastStation),
-		Volume:      clampVolume(value.Volume),
+		Stations:       stations,
+		LastStation:    truncateName(value.LastStation),
+		Volume:         clampVolume(value.Volume),
+		Language:       language,
+		GamepadEnabled: value.GamepadEnabled,
+		HideBuiltIn:    value.HideBuiltIn,
 	}
 }
 
@@ -153,6 +168,15 @@ func Read(path string) (Settings, error) {
 	}
 	if volume, ok := source["volume"].(float64); ok {
 		result.Volume = volume
+	}
+	if language, ok := source["language"].(string); ok {
+		result.Language = i18n.Language(language)
+	}
+	if enabled, ok := source["gamepad_enabled"].(bool); ok {
+		result.GamepadEnabled = enabled
+	}
+	if hidden, ok := source["hide_builtin_stations"].(bool); ok {
+		result.HideBuiltIn = hidden
 	}
 	return Normalize(result), nil
 }

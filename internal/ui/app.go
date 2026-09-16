@@ -2,6 +2,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/Serge-Nook/sd-on-radio/assets"
 	"github.com/Serge-Nook/sd-on-radio/internal/gamepad"
+	"github.com/Serge-Nook/sd-on-radio/internal/i18n"
 	"github.com/Serge-Nook/sd-on-radio/internal/player"
 	"github.com/Serge-Nook/sd-on-radio/internal/settings"
 	"github.com/Serge-Nook/sd-on-radio/internal/stations"
@@ -139,6 +141,14 @@ func (a *Application) Quit() {
 	})
 }
 
+func (a *Application) t(key string) string {
+	return i18n.T(a.settings.Language, key)
+}
+
+func (a *Application) tf(key string, args ...any) string {
+	return fmt.Sprintf(a.t(key), args...)
+}
+
 func (a *Application) close() {
 	a.closeMu.Do(func() {
 		if a.controller != nil {
@@ -156,19 +166,20 @@ func (a *Application) build() {
 	title := canvas.NewText(appName, theme.ForegroundColor())
 	title.TextSize = 28
 	title.TextStyle = fyne.TextStyle{Bold: true}
-	version := widget.NewLabel("Версия " + appVersion)
+	version := widget.NewLabel(a.tf("version", appVersion))
 
-	addButton := widget.NewButtonWithIcon("Добавить станцию", theme.ContentAddIcon(), a.showAddStation)
+	addButton := widget.NewButtonWithIcon(a.t("add_station"), theme.ContentAddIcon(), a.showAddStation)
 	addButton.Importance = widget.HighImportance
-	aboutButton := widget.NewButtonWithIcon("О программе", theme.InfoIcon(), a.showAbout)
+	settingsButton := widget.NewButtonWithIcon(a.t("settings"), theme.SettingsIcon(), a.showSettings)
+	aboutButton := widget.NewButtonWithIcon(a.t("about"), theme.InfoIcon(), a.showAbout)
 
 	headerLeft := container.NewVBox(title, version)
-	header := container.NewBorder(nil, nil, headerLeft, container.NewHBox(addButton, aboutButton))
+	header := container.NewBorder(nil, nil, headerLeft, container.NewHBox(addButton, settingsButton, aboutButton))
 
 	a.stationList = widget.NewList(
 		func() int { return len(a.allStations) },
 		func() fyne.CanvasObject {
-			name := widget.NewLabel("Станция")
+			name := widget.NewLabel(a.t("station"))
 			name.TextStyle = fyne.TextStyle{Bold: true}
 			badge := widget.NewLabel("")
 			edit := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), nil)
@@ -188,14 +199,14 @@ func (a *Application) build() {
 
 			name.SetText(item.Name)
 			if item.Custom {
-				badge.SetText("Пользовательская станция")
+				badge.SetText(a.t("custom_station"))
 				edit.Show()
 				remove.Show()
 				customIndex := item.CustomIndex
 				edit.OnTapped = func() { a.showEditStation(customIndex) }
 				remove.OnTapped = func() { a.confirmDeleteStation(customIndex) }
 			} else {
-				badge.SetText("Встроенная станция")
+				badge.SetText(a.t("builtin_station"))
 				edit.Hide()
 				remove.Hide()
 				edit.OnTapped = nil
@@ -218,14 +229,14 @@ func (a *Application) build() {
 		a.suppressSelect = false
 	}
 
-	a.stationLabel = widget.NewLabel("Станция не выбрана")
+	a.stationLabel = widget.NewLabel(a.t("no_station"))
 	a.stationLabel.TextStyle = fyne.TextStyle{Bold: true}
-	a.statusLabel = widget.NewLabel("Остановлено")
+	a.statusLabel = widget.NewLabel(a.t("stopped"))
 
-	a.playButton = widget.NewButtonWithIcon("Воспроизвести", theme.MediaPlayIcon(), a.playSelected)
+	a.playButton = widget.NewButtonWithIcon(a.t("play"), theme.MediaPlayIcon(), a.playSelected)
 	a.playButton.Importance = widget.HighImportance
-	a.pauseButton = widget.NewButtonWithIcon("Пауза", theme.MediaPauseIcon(), a.player.Pause)
-	a.stopButton = widget.NewButtonWithIcon("Стоп", theme.MediaStopIcon(), a.player.Stop)
+	a.pauseButton = widget.NewButtonWithIcon(a.t("pause"), theme.MediaPauseIcon(), a.player.Pause)
+	a.stopButton = widget.NewButtonWithIcon(a.t("stop"), theme.MediaStopIcon(), a.player.Stop)
 
 	a.volumeLabel = widget.NewLabel("")
 	a.volume = widget.NewSlider(0, 1)
@@ -234,7 +245,7 @@ func (a *Application) build() {
 	a.volume.OnChanged = func(value float64) {
 		a.player.SetVolume(value)
 		a.settings.Volume = value
-		a.volumeLabel.SetText(fmt.Sprintf("Громкость: %.0f%%", value*100))
+		a.volumeLabel.SetText(a.tf("volume", value*100))
 	}
 	a.volume.OnChangeEnded = func(value float64) { a.persist() }
 	a.volume.OnChanged(a.settings.Volume)
@@ -255,10 +266,16 @@ func (a *Application) build() {
 		container.NewPadded(a.stationList),
 	)
 	a.window.SetContent(content)
+	if a.player != nil {
+		a.applyPlayerStatus(a.player.Status())
+	}
 }
 
 func (a *Application) rebuildStations() {
-	builtIns := stations.BuiltIn()
+	var builtIns []settings.Station
+	if !a.settings.HideBuiltIn {
+		builtIns = stations.BuiltIn()
+	}
 	a.allStations = make([]stationItem, 0, len(builtIns)+len(a.settings.Stations))
 	for _, station := range builtIns {
 		a.allStations = append(a.allStations, stationItem{Station: station})
@@ -315,7 +332,7 @@ func (a *Application) playSelected() {
 	}
 	station := a.allStations[a.selected]
 	a.settings.LastStation = station.Name
-	a.stationLabel.SetText("Сейчас играет: " + station.Name)
+	a.stationLabel.SetText(a.tf("now_playing", station.Name))
 	a.persist()
 	a.player.Play(station.Name, station.URL)
 }
@@ -323,42 +340,47 @@ func (a *Application) playSelected() {
 func (a *Application) persist() {
 	stored, err := settings.Write(a.settingsPath, a.settings)
 	if err != nil {
-		dialog.ShowError(fmt.Errorf("не удалось сохранить настройки: %w", err), a.window)
+		dialog.ShowError(fmt.Errorf(a.t("save_error"), err), a.window)
 		return
 	}
 	a.settings = stored
 }
 
 func (a *Application) onPlayerStatus(status player.Status) {
-	fyne.Do(func() {
-		switch status.State {
-		case player.StateConnecting:
-			a.statusLabel.SetText("Подключение…")
-			a.statusLabel.Importance = widget.MediumImportance
-		case player.StatePlaying:
-			a.statusLabel.SetText("Воспроизведение")
-			a.statusLabel.Importance = widget.SuccessImportance
-		case player.StatePaused:
-			a.statusLabel.SetText("Пауза")
-			a.statusLabel.Importance = widget.WarningImportance
-		case player.StateStopped:
-			a.statusLabel.SetText("Остановлено")
-			a.statusLabel.Importance = widget.MediumImportance
-			a.stationLabel.SetText("Станция не выбрана")
-		case player.StateError:
-			message := "Ошибка потока, повторное подключение…"
-			if status.Err != nil {
-				message = "Ошибка: " + status.Err.Error()
-			}
-			a.statusLabel.SetText(message)
-			a.statusLabel.Importance = widget.DangerImportance
+	fyne.Do(func() { a.applyPlayerStatus(status) })
+}
+
+func (a *Application) applyPlayerStatus(status player.Status) {
+	switch status.State {
+	case player.StateConnecting:
+		a.statusLabel.SetText(a.t("connecting"))
+		a.statusLabel.Importance = widget.MediumImportance
+		a.stationLabel.SetText(a.tf("now_playing", status.Station))
+	case player.StatePlaying:
+		a.statusLabel.SetText(a.t("playing"))
+		a.statusLabel.Importance = widget.SuccessImportance
+		a.stationLabel.SetText(a.tf("now_playing", status.Station))
+	case player.StatePaused:
+		a.statusLabel.SetText(a.t("paused"))
+		a.statusLabel.Importance = widget.WarningImportance
+		a.stationLabel.SetText(a.tf("now_playing", status.Station))
+	case player.StateStopped:
+		a.statusLabel.SetText(a.t("stopped"))
+		a.statusLabel.Importance = widget.MediumImportance
+		a.stationLabel.SetText(a.t("no_station"))
+	case player.StateError:
+		message := a.t("stream_error_retry")
+		if status.Err != nil {
+			message = a.tf("error", status.Err.Error())
 		}
-		a.statusLabel.Refresh()
-	})
+		a.statusLabel.SetText(message)
+		a.statusLabel.Importance = widget.DangerImportance
+	}
+	a.statusLabel.Refresh()
 }
 
 func (a *Application) showAddStation() {
-	a.showStationForm("Добавить станцию", settings.Station{}, func(station settings.Station) {
+	a.showStationForm(a.t("add_station"), settings.Station{}, func(station settings.Station) {
 		a.settings.Stations = append(a.settings.Stations, station)
 		a.persist()
 		a.refreshStationList()
@@ -369,7 +391,7 @@ func (a *Application) showEditStation(index int) {
 	if index < 0 || index >= len(a.settings.Stations) {
 		return
 	}
-	a.showStationForm("Редактировать станцию", a.settings.Stations[index], func(station settings.Station) {
+	a.showStationForm(a.t("edit_station"), a.settings.Stations[index], func(station settings.Station) {
 		oldName := a.settings.Stations[index].Name
 		a.settings.Stations[index] = station
 		if a.settings.LastStation == oldName {
@@ -382,14 +404,14 @@ func (a *Application) showEditStation(index int) {
 
 func (a *Application) showStationForm(title string, initial settings.Station, save func(settings.Station)) {
 	name := widget.NewEntry()
-	name.SetPlaceHolder("Название станции")
+	name.SetPlaceHolder(a.t("station_name"))
 	name.SetText(initial.Name)
 	name.Validator = func(value string) error {
 		if _, ok := settings.NormalizeStation(settings.Station{
 			Name: value,
 			URL:  "https://example.com/stream",
 		}); !ok {
-			return fmt.Errorf("название обязательно, не более 80 символов")
+			return errors.New(a.t("name_required"))
 		}
 		return nil
 	}
@@ -398,22 +420,22 @@ func (a *Application) showStationForm(title string, initial settings.Station, sa
 	streamURL.SetText(initial.URL)
 	streamURL.Validator = func(value string) error {
 		if !settings.IsValidHTTPURL(strings.TrimSpace(value)) || len(strings.TrimSpace(value)) > 2048 {
-			return fmt.Errorf("нужен корректный URL http:// или https://")
+			return errors.New(a.t("url_invalid"))
 		}
 		return nil
 	}
 
 	items := []*widget.FormItem{
-		widget.NewFormItem("Название", name),
-		widget.NewFormItem("URL потока", streamURL),
+		widget.NewFormItem(a.t("name"), name),
+		widget.NewFormItem(a.t("stream_url"), streamURL),
 	}
-	form := dialog.NewForm(title, "Сохранить", "Отмена", items, func(ok bool) {
+	form := dialog.NewForm(title, a.t("save"), a.t("cancel"), items, func(ok bool) {
 		if !ok {
 			return
 		}
 		station, valid := settings.NormalizeStation(settings.Station{Name: name.Text, URL: streamURL.Text})
 		if !valid {
-			dialog.ShowError(fmt.Errorf("укажите название (до 80 символов) и корректный URL http:// или https://"), a.window)
+			dialog.ShowError(errors.New(a.t("station_invalid")), a.window)
 			return
 		}
 		save(station)
@@ -428,8 +450,8 @@ func (a *Application) confirmDeleteStation(index int) {
 	}
 	station := a.settings.Stations[index]
 	dialog.ShowConfirm(
-		"Удалить станцию",
-		fmt.Sprintf("Удалить «%s»?", station.Name),
+		a.t("delete_station"),
+		a.tf("delete_confirm", station.Name),
 		func(ok bool) {
 			if !ok {
 				return
@@ -451,14 +473,14 @@ func (a *Application) showAbout() {
 	name.TextSize = 26
 	name.TextStyle = fyne.TextStyle{Bold: true}
 	info := widget.NewLabel(strings.Join([]string{
-		"Версия " + appVersion,
-		"Автономное интернет-радио для Steam Deck",
-		"Разработчик: Serge Nook",
+		a.tf("version", appVersion),
+		a.t("about_tagline"),
+		a.t("about_author"),
 		"",
-		"Не изменяет Steam и не требует sudo.",
+		a.t("about_safe"),
 	}, "\n"))
 	info.Alignment = fyne.TextAlignCenter
-	openWebsite := widget.NewButton("Открыть SD-ON.RU", func() {
+	openWebsite := widget.NewButton(a.t("open_website"), func() {
 		parsed, _ := url.Parse(websiteURL)
 		_ = a.fyneApp.OpenURL(parsed)
 	})
@@ -467,9 +489,48 @@ func (a *Application) showAbout() {
 		info,
 		container.NewCenter(openWebsite),
 	)
-	dlg := dialog.NewCustom("О программе", "Закрыть", content, a.window)
+	dlg := dialog.NewCustom(a.t("about"), a.t("close"), content, a.window)
 	dlg.Resize(fyne.NewSize(560, 360))
 	dlg.Show()
+}
+
+func (a *Application) showSettings() {
+	names := make([]string, 0, len(i18n.Languages()))
+	for _, lang := range i18n.Languages() {
+		names = append(names, i18n.NativeName(lang))
+	}
+	language := widget.NewSelect(names, nil)
+	language.SetSelected(i18n.NativeName(a.settings.Language))
+
+	gamepadCheck := widget.NewCheck(a.t("enabled"), nil)
+	gamepadCheck.SetChecked(a.settings.GamepadEnabled)
+	gamepadHint := widget.NewLabel(a.t("gamepad_hotkeys_hint"))
+	gamepadHint.Wrapping = fyne.TextWrapWord
+
+	hideCheck := widget.NewCheck(a.t("hidden"), nil)
+	hideCheck.SetChecked(a.settings.HideBuiltIn)
+	hideHint := widget.NewLabel(a.t("hide_builtin_hint"))
+	hideHint.Wrapping = fyne.TextWrapWord
+
+	items := []*widget.FormItem{
+		widget.NewFormItem(a.t("language"), language),
+		widget.NewFormItem(a.t("gamepad_hotkeys"), container.NewVBox(gamepadCheck, gamepadHint)),
+		widget.NewFormItem(a.t("hide_builtin"), container.NewVBox(hideCheck, hideHint)),
+	}
+	form := dialog.NewForm(a.t("settings"), a.t("save"), a.t("cancel"), items, func(ok bool) {
+		if !ok {
+			return
+		}
+		if lang, valid := i18n.FromNativeName(language.Selected); valid {
+			a.settings.Language = lang
+		}
+		a.settings.GamepadEnabled = gamepadCheck.Checked
+		a.settings.HideBuiltIn = hideCheck.Checked
+		a.persist()
+		a.build()
+	}, a.window)
+	form.Resize(fyne.NewSize(720, 400))
+	form.Show()
 }
 
 func (a *Application) drainGamepadActions() {
@@ -484,7 +545,7 @@ func (a *Application) drainGamepadActions() {
 }
 
 func (a *Application) handleGamepadAction(action gamepad.Action) {
-	if len(a.allStations) == 0 {
+	if !a.settings.GamepadEnabled || len(a.allStations) == 0 {
 		return
 	}
 	switch action {
